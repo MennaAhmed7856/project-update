@@ -1,2 +1,2 @@
-streamlit==
-tensorflow==
+streamlit
+tensorflow
