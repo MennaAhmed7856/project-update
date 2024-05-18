@@ -1,19 +1,10 @@
 import os
-import nltk
-nltk.download('punkt')
-nltk.download('wordnet')
-from nltk.stem import WordNetLemmatizer
-lemmatizer = WordNetLemmatizer()
 import json
-import numpy as np
 from tensorflow import keras
 import random
 import streamlit as st
-from gtts import gTTS
-import datetime  # Import datetime module
+import datetime
 
-# Get an object
-lemmatizer = WordNetLemmatizer()
 
 # Load your model
 model = keras.models.load_model('model.h5')
@@ -22,57 +13,6 @@ model = keras.models.load_model('model.h5')
 data_file = open('intents.json').read()
 intents = json.loads(data_file)
 
-words=[]
-classes = []
-documents = []
-ignore_words = ['?', '!']
-
-for intent in intents['intents']:
-    for pattern in intent['patterns']:
-        # take each word and tokenize it
-        w = nltk.word_tokenize(pattern)
-        words.extend(w)
-        # adding documents
-        documents.append((w, intent['tag']))
-        # adding classes to our class list
-        if intent['tag'] not in classes:
-            classes.append(intent['tag'])
-
-words = [lemmatizer.lemmatize(w.lower()) for w in words if w not in ignore_words]
-words = sorted(list(set(words)))
-classes = sorted(list(set(classes)))
-
-def clean_up_sentence(sentence):
-    sentence_words = nltk.word_tokenize(sentence)
-    sentence_words = [lemmatizer.lemmatize(word.lower()) for word in sentence_words]
-    return sentence_words
-
-def bow(sentence, words, show_details=True):
-    # tokenize the pattern
-    sentence_words = clean_up_sentence(sentence)
-    # bag of words - matrix of N words, vocabulary matrix
-    bag = [0]*len(words)
-    for s in sentence_words:
-        for i,w in enumerate(words):
-            if w == s:
-                # assign 1 if current word is in the vocabulary position
-                bag[i] = 1
-                if show_details:
-                    print ("found in bag: %s" % w)
-    return(np.array(bag))
-
-def predict_class(sentence, model):
-    # filter out predictions below a threshold
-    p = bow(sentence, words, show_details=False)
-    res = model.predict(np.array([p]))[0]
-    ERROR_THRESHOLD = 0.25
-    results = [[i,r] for i,r in enumerate(res) if r>ERROR_THRESHOLD]
-    # sort by strength of probability
-    results.sort(key=lambda x: x[1], reverse=True)
-    return_list = []
-    for r in results:
-        return_list.append({"intent": classes[r[0]], "probability": str(r[1])})
-    return return_list
 
 def get_books_by_tag(tag):
     # Get all books for a specific tag from intents data
@@ -110,15 +50,6 @@ def get_next_book(tag, current_index):
     tag_books = get_books_by_tag(tag)
     return tag_books[current_index] if current_index < len(tag_books) else None
 
-
-def getResponse(ints, intents_json):
-    tag = ints[0]['intent']
-    list_of_intents = intents_json['intents']
-    for i in list_of_intents:
-        if(i['tag']== tag):
-            response = random.choice(i['responses'])
-            other_books = i.get('other_books', [])
-            return response, other_books
 
 def format_response(response):
     # Define prompts for the user
@@ -170,31 +101,18 @@ def format_response(response):
     else:
         return "I'm sorry, I didn't understand that."
 
-# Streamlit GUI
 ## Streamlit GUI
 def display_initial_message():
     # Check if the initial message has been displayed
     if not st.session_state.get('initial_message_displayed', False):
         # Define the initial message with suggestions
-        st.markdown("<h1 style='text-align: center; display: flex; align-items: center;'>How can I help you today? <img src='https://img.freepik.com/vector-premium/bot-chat-decir-hola-robots-programados-hablar-clientes-linea_68708-622.jpg?w=826' style='height: 70px;width:70px; margin-left: 5px;margin-bottom:10px;' /></h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; display: flex; align-items: center;'>How can I help you today? <img src='https://i...content-available-to-author-only...k.com/vector-premium/bot-chat-decir-hola-robots-programados-hablar-clientes-linea_68708-622.jpg?w=826' style='height: 70px;width:70px; margin-left: 5px;margin-bottom:10px;' /></h1>", unsafe_allow_html=True)
 
-
-        # Define the suggestions as clickable buttons
-        suggestions = [
-            
-            # Add more suggestions as needed
-        ]
-        for suggestion in suggestions:
-            if st.button(suggestion):
-                # If the user clicks on a suggestion, handle the corresponding action or response
-                handle_suggestion(suggestion)
         # Set the flag to indicate that the initial message has been displayed
         st.session_state.initial_message_displayed = True
 
-#
-# Display the initial message
-display_initial_message()
 
+chat_history = st.empty()
 
 # File path for chat history
 chat_history_file = "chat_history.txt"
@@ -210,55 +128,6 @@ if "new_session" not in st.session_state:
 
     with open(chat_history_file, "w") as file:
         file.write("")
-
-
-
-
-# Chat History
-chat_history = st.empty()
-import streamlit as st
-
-
-# Initialize session state
-if 'current_book_index' not in st.session_state:
-    st.session_state.current_book_index = 0
-
-# Define colors for user and chatbot messages
-user_color = '#4c63cb'
-chatbot_color = 'lightgrey'
-
-# Streamlit GUI
-
-# Initialize session state
-if 'current_book_index' not in st.session_state:
-    st.session_state.current_book_index = 0
-
-# Define colors for user and chatbot messages
-user_color = '#4c63cb'
-chatbot_color = 'lightgrey'
-
-
-# File path for chat history
-chat_history_file = "chat_history.txt"
-
-# Ensure chat history file exists
-if not os.path.exists(chat_history_file):
-    with open(chat_history_file, "w") as file:
-        file.write("")
-
-# Clear chat history if it's a new session
-if "new_session" not in st.session_state:
-    st.session_state.new_session = False
-
-    with open(chat_history_file, "w") as file:
-        file.write("")
-
-# Chat History
-chat_history = st.empty()
-
-# Initialize response variable
-response = None
-
 
 # File path for chat history
 chat_history_dir = "chat_history"
@@ -275,19 +144,6 @@ def save_conversation(conversation):
     with open(file_name, "w") as file:
         file.write(conversation)
         
-
-
-# Function to list all conversation files in the sidebar
-def list_conversations():
-    conversation_files = [f for f in os.listdir(chat_history_dir) if f.startswith("conversation_")]
-    return conversation_files
-
-
-
-# Ensure chat history directory exists
-if not os.path.exists(chat_history_dir):
-    os.makedirs(chat_history_dir)
-
 def load_conversation(selected_conversation):
     file_path = os.path.join(chat_history_dir, selected_conversation)
     with open(file_path, "r") as file:
@@ -296,10 +152,26 @@ def load_conversation(selected_conversation):
     formatted_conversation = ""
     for line in conversation_lines:
         if line.startswith("You:"):
-            formatted_conversation += f"<div style='display:flex; align-items:center;'><img src='https://cdn-icons-png.freepik.com/256/1077/1077063.png?ga=GA1.1.1855954139.1712204546&semt=ais_hybrid' style='vertical-align:middle; margin-right:5px; height: 20px; width: 20px;'><div style='background-color:{user_color}; padding:10px; margin-bottom:12px; border-radius:15px;'> {line}</div></div>"
+            formatted_conversation += f"<div style='display:flex; align-items:center;'><img src='https://c...content-available-to-author-only...k.com/256/1077/1077063.png?ga=GA1.1.1855954139.1712204546&semt=ais_hybrid' style='vertical-align:middle; margin-right:5px; height: 20px; width: 20px;'><div style='background-color:{user_color}; padding:10px; margin-bottom:12px; border-radius:15px;'> {line}</div></div>"
         else:
-             formatted_conversation += f"<div style='display:flex; align-items:flex-start; ;'><img src='https://cdn-icons-png.flaticon.com/128/11306/11306080.png'' style='vertical-align:middle; margin-right:5px; height: 30px; width: 30px;'><div style='background-color:{chatbot_color}; padding:10px; margin-bottom:12px; border-radius:15px;'> {line}</div></div>"
+             formatted_conversation += f"<div style='display:flex; align-items:flex-start; ;'><img src='https://c...content-available-to-author-only...n.com/128/11306/11306080.png'' style='vertical-align:middle; margin-right:5px; height: 30px; width: 30px;'><div style='background-color:{chatbot_color}; padding:10px; margin-bottom:12px; border-radius:15px;'> {line}</div></div>"
     st.markdown(formatted_conversation, unsafe_allow_html=True)
+
+# Function to list all conversation files in the sidebar
+def list_conversations():
+    conversation_files = [f for f in os.listdir(chat_history_dir) if f.startswith("conversation_")]
+    return conversation_files
+
+# Initialize session state
+if 'current_book_index' not in st.session_state:
+    st.session_state.current_book_index = 0
+
+
+# Define colors for user and chatbot messages
+user_color = '#4c63cb'
+chatbot_color = 'lightgrey'
+
+
 
 
 # Function to begin a new session
@@ -319,12 +191,6 @@ def begin_new_session():
 if st.sidebar.button("New chat"):
     begin_new_session()
 
-
-# Streamlit GUI
-
-# Streamlit GUI
-
-# Streamlit GUI
 
 # Streamlit GUI
 
@@ -353,16 +219,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-# Streamlit GUI
-
-import random
-
-# Streamlit GUI
-
-
-
-
-
 
 
 # Initialize conversation in session state
@@ -472,12 +328,12 @@ with st.form(key='chat_form'):
             formatted_response = format_response(response)
             # User message with grey background
             file.write(f"<div style='display:flex; align-items:center;'>")
-            file.write(f"<img src='https://cdn-icons-png.freepik.com/256/1077/1077063.png?ga=GA1.1.1855954139.1712204546&semt=ais_hybrid' style='vertical-align:middle; margin-right:5px; height: 20px; width: 20px;'>")
+            file.write(f"<img src='https://c...content-available-to-author-only...k.com/256/1077/1077063.png?ga=GA1.1.1855954139.1712204546&semt=ais_hybrid' style='vertical-align:middle; margin-right:5px; height: 20px; width: 20px;'>")
             file.write(f"<div style='background-color:{user_color}; padding:10px; margin-bottom:15px; border-radius:15px;'> You: {user_input}</div>")
             file.write(f"</div>")
           # Chatbot response with blue background and small icon
             file.write(f"<div style='display:flex; align-items:flex-start;'>")
-            file.write(f"<img src='https://cdn-icons-png.flaticon.com/128/11306/11306080.png' style='vertical-align:middle; margin-right:5px; height: 30px; width: 30px;'>")
+            file.write(f"<img src='https://c...content-available-to-author-only...n.com/128/11306/11306080.png' style='vertical-align:middle; margin-right:5px; height: 30px; width: 30px;'>")
             file.write(f"<div style='background-color:{chatbot_color}; padding:10px; margin-bottom:12px; border-radius:15px;'> {formatted_response}</div>")
             file.write(f"</div>")
 
@@ -490,4 +346,4 @@ with st.form(key='chat_form'):
 
     # Render chat history with HTML if it's not empty
     if chat_history_text.strip() != "":
-        chat_history.markdown(chat_history_text, unsafe_allow_html=True)      
+        chat_history.markdown(chat_history_text, unsafe_allow_html=True)
